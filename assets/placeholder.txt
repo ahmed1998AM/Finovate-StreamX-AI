@@ -1,0 +1,37 @@
+# Assets Directory
+
+This directory contains application assets:
+
+## Required Files
+
+- `icon.ico` - Application icon (Windows)
+- `icon.png` - Application icon (PNG format)
+- `splash.png` - Splash screen image
+- `logo.svg` - Application logo (SVG vector)
+
+## Theme Assets
+
+- `backgrounds/` - Background images
+- `icons/` - UI icons (SVG preferred)
+- `fonts/` - Custom fonts
+
+## Notes
+
+- Use SVG for icons when possible (smaller size, scalable)
+- Optimize PNG images with compression
+- Keep total asset size under 50MB for distribution
+- All assets should follow the Cyberpunk Glassmorphism theme
+
+## Icon Requirements
+
+- Main icon: 256x256 PNG + ICO format
+- Tray icon: 32x32 PNG
+- Toolbar icons: 24x24 SVG
+
+## Color Scheme
+
+Refer to core/config.py for theme colors:
+- Primary: #1E88E5
+- Accent: #00E5FF
+- Success: #00FFC6
+- Danger: #FF5252
