@@ -98,10 +98,10 @@ def main():
         # Apply stylesheet
         app.setStyleSheet(get_stylesheet())
         
-        # TODO: Create and show main window
-        # from ui.main_window import MainWindow
-        # window = MainWindow(db_manager)
-        # window.show()
+        # Create and show main window
+        from ui.main_window import MainWindow
+        window = MainWindow(db_manager)
+        window.show()
         
         logger.info("Application started successfully")
         
