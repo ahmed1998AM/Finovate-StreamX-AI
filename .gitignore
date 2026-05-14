@@ -1,42 +1,53 @@
-```
-# Python
+```gitignore
+# Dependencies
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Logs and temp files
-*.log
-*.tmp
-*.swp
 
 # Environment
 .env
 .env.local
 *.env.*
 
+# Logs and temp files
+*.log
+*.tmp
+
 # Editors
 .vscode/
 .idea/
-
-# Dependencies
-.venv/
-venv/
-node_modules/
+*.swp
+*.swo
 
 # Build artifacts
 dist/
 build/
-target/
+*.egg-info/
 
-# Coverage
+# Testing
 .coverage
-coverage/
 htmlcov/
+.coverage.*
+.nox/
+.tox/
 
-# MyPy
-.mypy_cache/
-
-# Pytest
+# Python specific
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.ENV
+pip-log.txt
+pip-delete-this-directory.txt
 .pytest_cache/
+.mypy_cache/
+.hypothesis/
+
+# Web dashboard artifacts
+*.css.map
+*.js.map
 ```
