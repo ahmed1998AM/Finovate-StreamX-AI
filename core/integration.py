@@ -1,316 +1,406 @@
 """
-Finovate StreamX AI - Complete Integration Module
-Bridges UI, Player, DVR, and IPTV Parser for seamless operation
-Developer: Ahmed Mostafa Ibrahim | Finovate – AHMED EG
-Contact: 01225155329 | gogom8870@gmail.com
+Finovate StreamX AI - Integration Core
+نظام التكامل المركزي
+المطور: Ahmed Mostafa Ibrahim | Finovate – AHMED EG
 """
 
-import sys
-import os
-from pathlib import Path
-from typing import Optional, Dict, List, Any
-from datetime import datetime
-import logging
 import asyncio
-
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QMessageBox
-from PySide6.QtCore import QObject, Signal, Slot, QTimer
-
-# Import modules
-from player.enhanced_player import EnhancedVLCPlayerWidget
-from dvr import DVRManager
-from iptv.parser import M3UParser
-from database.db_manager import DatabaseManager
-
-logger = logging.getLogger(__name__)
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 
 
-class IntegrationController(QObject):
-    """
-    Main integration controller that bridges all components:
-    - UI Pages
-    - VLC Player
-    - DVR Recording
-    - IPTV Parser
-    - Database
-    """
-    
-    # Signals
-    channel_loaded = Signal(dict)
-    playback_started = Signal(str)
-    recording_started = Signal(str)
-    error_occurred = Signal(str)
+class IntegrationStatus(Enum):
+    """حالة التكامل"""
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    ERROR = "error"
+    PENDING = "pending"
+
+
+@dataclass
+class IntegrationConfig:
+    """إعدادات التكامل"""
+    integration_id: str
+    name: str
+    type: str
+    enabled: bool = True
+    config: Dict = field(default_factory=dict)
+    status: IntegrationStatus = IntegrationStatus.PENDING
+    last_sync: Optional[datetime] = None
+    error_message: str = ""
+
+
+class IntegrationCore:
+    """النواة المركزية لتكامل جميع أنظمة التطبيق"""
     
     def __init__(self):
-        super().__init__()
+        self.integrations: Dict[str, IntegrationConfig] = {}
+        self.event_queue: asyncio.Queue = asyncio.Queue()
+        self.is_running = False
+        self._tasks: List[asyncio.Task] = []
         
-        # Initialize components
-        self.player: Optional[EnhancedVLCPlayerWidget] = None
-        self.dvr_manager: Optional[DVRManager] = None
-        self.iptv_parser: Optional[M3UParser] = None
-        self.db_manager: Optional[DatabaseManager] = None
+        # مراجع للأنظمة
+        self.user_manager = None
+        self.permission_manager = None
+        self.session_manager = None
+        self.family_mode = None
+        self.marketplace = None
+        self.tv_mode = None
         
-        # State
-        self.current_channel = None
-        self.loaded_channels: List[dict] = []
-        self.favorite_channels: List[str] = []
-        
-        # Update timer
-        self.status_timer = QTimer()
-        self.status_timer.timeout.connect(self._update_status)
-        
-        logger.info("Integration Controller initialized")
+        self._register_default_integrations()
     
-    def initialize_components(self, parent_widget=None):
-        """Initialize all components"""
-        try:
-            # Initialize Player
-            self.player = EnhancedVLCPlayerWidget(parent_widget)
-            self.player.playback_started.connect(lambda ch: self.playback_started.emit(ch))
-            self.player.error_occurred.connect(lambda err: self.error_occurred.emit(err))
-            
-            # Initialize DVR
-            self.dvr_manager = DVRManager()
-            self.player.set_dvr_manager(self.dvr_manager)
-            
-            # Initialize IPTV Parser
-            self.iptv_parser = M3UParser()
-            
-            # Initialize Database
-            self.db_manager = DatabaseManager()
-            asyncio.run(self.db_manager.initialize())
-            
-            # Connect player to DVR
-            self.player.set_dvr_manager(self.dvr_manager)
-            
-            logger.info("All components initialized successfully")
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize components: {e}")
-            self.error_occurred.emit(f"Initialization failed: {str(e)}")
-    
-    def load_playlist(self, playlist_path: str) -> bool:
-        """Load M3U/M3U8 playlist"""
-        try:
-            if not self.iptv_parser:
-                raise Exception("IPTV Parser not initialized")
-            
-            # Parse playlist
-            channels = self.iptv_parser.parse_file(playlist_path)
-            
-            if not channels:
-                raise Exception("No channels found in playlist")
-            
-            self.loaded_channels = channels
-            
-            # Save to database
-            if self.db_manager:
-                asyncio.run(self._save_channels_to_db(channels))
-            
-            logger.info(f"Loaded {len(channels)} channels from {playlist_path}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to load playlist: {e}")
-            self.error_occurred.emit(f"Failed to load playlist: {str(e)}")
-            return False
-    
-    async def _save_channels_to_db(self, channels: List[dict]):
-        """Save channels to database"""
-        try:
-            for channel in channels:
-                await self.db_manager.add_channel(
-                    name=channel.get('name', 'Unknown'),
-                    url=channel.get('url', ''),
-                    category=channel.get('category', 'General'),
-                    country=channel.get('country', 'Unknown'),
-                    logo=channel.get('logo', '')
-                )
-        except Exception as e:
-            logger.error(f"Failed to save channels to DB: {e}")
-    
-    def play_channel(self, channel: dict) -> bool:
-        """Play a specific channel"""
-        try:
-            if not self.player:
-                raise Exception("Player not initialized")
-            
-            channel_name = channel.get('name', 'Unknown')
-            channel_url = channel.get('url', '')
-            
-            if not channel_url:
-                raise Exception("Channel URL is empty")
-            
-            # Load and play
-            self.player.load_channel(channel_name, channel_url, channel)
-            self.player.play()
-            
-            self.current_channel = channel
-            
-            # Add to history
-            if self.db_manager:
-                asyncio.run(self.db_manager.add_watch_history(
-                    content_id=channel_name,
-                    content_type='channel',
-                    title=channel_name
-                ))
-            
-            self.channel_loaded.emit(channel)
-            logger.info(f"Playing channel: {channel_name}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to play channel: {e}")
-            self.error_occurred.emit(f"Failed to play channel: {str(e)}")
-            return False
-    
-    def toggle_recording(self) -> bool:
-        """Toggle recording for current channel"""
-        if not self.player or not self.dvr_manager:
-            return False
-        
-        self.player.toggle_recording()
-        return True
-    
-    def get_channels_by_category(self, category: str) -> List[dict]:
-        """Get channels filtered by category"""
-        if category.lower() == 'all':
-            return self.loaded_channels
-        
-        return [
-            ch for ch in self.loaded_channels 
-            if ch.get('category', '').lower() == category.lower()
+    def _register_default_integrations(self):
+        """تسجيل التكاملات الافتراضية"""
+        integrations = [
+            IntegrationConfig(
+                integration_id="user_system",
+                name="نظام المستخدمين",
+                type="core",
+                enabled=True
+            ),
+            IntegrationConfig(
+                integration_id="permissions",
+                name="نظام الصلاحيات",
+                type="core",
+                enabled=True
+            ),
+            IntegrationConfig(
+                integration_id="sessions",
+                name="إدارة الجلسات",
+                type="core",
+                enabled=True
+            ),
+            IntegrationConfig(
+                integration_id="family_mode",
+                name="وضع العائلة",
+                type="feature",
+                enabled=False
+            ),
+            IntegrationConfig(
+                integration_id="marketplace",
+                name="سوق الإضافات",
+                type="feature",
+                enabled=True
+            ),
+            IntegrationConfig(
+                integration_id="android_tv",
+                name="وضع التلفزيون",
+                type="ui",
+                enabled=False
+            ),
+            IntegrationConfig(
+                integration_id="dvr_system",
+                name="نظام التسجيل",
+                type="feature",
+                enabled=True
+            ),
+            IntegrationConfig(
+                integration_id="torrent_streaming",
+                name="بث التورنت",
+                type="feature",
+                enabled=False
+            ),
+            IntegrationConfig(
+                integration_id="ai_assistant",
+                name="مساعد الذكاء الاصطناعي",
+                type="ai",
+                enabled=True
+            ),
+            IntegrationConfig(
+                integration_id="cloud_sync",
+                name="المزامنة السحابية",
+                type="service",
+                enabled=False
+            ),
+            IntegrationConfig(
+                integration_id="web_dashboard",
+                name="لوحة التحكم الويب",
+                type="ui",
+                enabled=False
+            ),
+            IntegrationConfig(
+                integration_id="rest_api",
+                name="واجهة API",
+                type="api",
+                enabled=True
+            ),
         ]
-    
-    def get_channels_by_country(self, country: str) -> List[dict]:
-        """Get channels filtered by country"""
-        if country.lower() == 'all':
-            return self.loaded_channels
         
-        return [
-            ch for ch in self.loaded_channels 
-            if ch.get('country', '').lower() == country.lower()
-        ]
+        for integration in integrations:
+            self.integrations[integration.integration_id] = integration
     
-    def search_channels(self, query: str) -> List[dict]:
-        """Search channels by name"""
-        query = query.lower()
-        return [
-            ch for ch in self.loaded_channels 
-            if query in ch.get('name', '').lower()
-        ]
+    async def start(self):
+        """بدء نظام التكامل"""
+        if self.is_running:
+            return
+        
+        self.is_running = True
+        print("🚀 بدء نظام التكامل المركزي...")
+        
+        # بدء مهمة معالجة الأحداث
+        task = asyncio.create_task(self._process_events())
+        self._tasks.append(task)
+        
+        # تهيئة التكاملات المفعلة
+        for int_id, config in self.integrations.items():
+            if config.enabled:
+                await self._initialize_integration(int_id)
+        
+        print("✅ نظام التكامل جاهز")
     
-    def add_to_favorites(self, channel_name: str) -> bool:
-        """Add channel to favorites"""
-        if channel_name not in self.favorite_channels:
-            self.favorite_channels.append(channel_name)
+    async def stop(self):
+        """إيقاف نظام التكامل"""
+        self.is_running = False
+        
+        # إلغاء المهام
+        for task in self._tasks:
+            task.cancel()
+        
+        # إيقاف التكاملات
+        for int_id in list(self.integrations.keys()):
+            await self._shutdown_integration(int_id)
+        
+        print("✅ تم إيقاف نظام التكامل")
+    
+    async def _initialize_integration(self, integration_id: str):
+        """تهيئة تكامل معين"""
+        config = self.integrations.get(integration_id)
+        if not config:
+            return
+        
+        try:
+            print(f"  📦 تهيئة: {config.name}...")
             
-            if self.db_manager:
-                asyncio.run(self.db_manager.add_to_favorites(
-                    content_id=channel_name,
-                    content_type='channel'
-                ))
+            # محاكاة التهيئة
+            await asyncio.sleep(0.1)
             
-            logger.info(f"Added to favorites: {channel_name}")
+            config.status = IntegrationStatus.ACTIVE
+            config.last_sync = datetime.now()
+            print(f"  ✅ {config.name}: جاهز")
+            
+        except Exception as e:
+            config.status = IntegrationStatus.ERROR
+            config.error_message = str(e)
+            print(f"  ❌ {config.name}: خطأ - {e}")
+    
+    async def _shutdown_integration(self, integration_id: str):
+        """إيقاف تكامل معين"""
+        config = self.integrations.get(integration_id)
+        if not config:
+            return
+        
+        config.status = IntegrationStatus.INACTIVE
+        print(f"  🛑 {config.name}: تم الإيقاف")
+    
+    async def _process_events(self):
+        """معالجة قائمة الأحداث"""
+        while self.is_running:
+            try:
+                event = await asyncio.wait_for(self.event_queue.get(), timeout=1.0)
+                await self._handle_event(event)
+            except asyncio.TimeoutError:
+                continue
+            except Exception as e:
+                print(f"❌ خطأ في معالجة الحدث: {e}")
+    
+    async def _handle_event(self, event: Dict):
+        """معالجة حدث معين"""
+        event_type = event.get("type")
+        data = event.get("data", {})
+        
+        if event_type == "user_login":
+            await self._on_user_login(data)
+        elif event_type == "user_logout":
+            await self._on_user_logout(data)
+        elif event_type == "content_played":
+            await self._on_content_played(data)
+        elif event_type == "plugin_installed":
+            await self._on_plugin_installed(data)
+        elif event_type == "settings_changed":
+            await self._on_settings_changed(data)
+    
+    async def _on_user_login(self, data: Dict):
+        """عند تسجيل دخول مستخدم"""
+        user_id = data.get("user_id")
+        print(f"🔐 حدث: تسجيل دخول المستخدم {user_id}")
+    
+    async def _on_user_logout(self, data: Dict):
+        """عند تسجيل خروج مستخدم"""
+        user_id = data.get("user_id")
+        print(f"🔓 حدث: تسجيل خروج المستخدم {user_id}")
+    
+    async def _on_content_played(self, data: Dict):
+        """عند تشغيل محتوى"""
+        user_id = data.get("user_id")
+        content_id = data.get("content_id")
+        content_type = data.get("content_type")
+        
+        print(f"▶️ حدث: تشغيل {content_type} ({content_id}) للمستخدم {user_id}")
+    
+    async def _on_plugin_installed(self, data: Dict):
+        """عند تثبيت إضافة"""
+        plugin_id = data.get("plugin_id")
+        print(f"📦 حدث: تثبيت الإضافة {plugin_id}")
+    
+    async def _on_settings_changed(self, data: Dict):
+        """عند تغيير الإعدادات"""
+        setting_key = data.get("key")
+        setting_value = data.get("value")
+        print(f"⚙️ حدث: تغيير الإعداد {setting_key} = {setting_value}")
+    
+    def emit_event(self, event_type: str, data: Dict):
+        """إصدار حدث"""
+        event = {"type": event_type, "data": data}
+        asyncio.create_task(self.event_queue.put(event))
+    
+    def register_system(self, system_name: str, system_instance: Any):
+        """تسجيل نظام للتكامل"""
+        if system_name == "user_manager":
+            self.user_manager = system_instance
+        elif system_name == "permission_manager":
+            self.permission_manager = system_instance
+        elif system_name == "session_manager":
+            self.session_manager = system_instance
+        elif system_name == "family_mode":
+            self.family_mode = system_instance
+        elif system_name == "marketplace":
+            self.marketplace = system_instance
+        elif system_name == "tv_mode":
+            self.tv_mode = system_instance
+        
+        print(f"✅ تم تسجيل النظام: {system_name}")
+    
+    def get_integration_status(self, integration_id: str) -> Optional[IntegrationConfig]:
+        """الحصول على حالة تكامل"""
+        return self.integrations.get(integration_id)
+    
+    async def enable_integration(self, integration_id: str) -> bool:
+        """تفعيل تكامل"""
+        if integration_id in self.integrations:
+            config = self.integrations[integration_id]
+            config.enabled = True
+            await self._initialize_integration(integration_id)
             return True
         return False
     
-    def remove_from_favorites(self, channel_name: str) -> bool:
-        """Remove channel from favorites"""
-        if channel_name in self.favorite_channels:
-            self.favorite_channels.remove(channel_name)
-            
-            if self.db_manager:
-                asyncio.run(self.db_manager.remove_from_favorites(
-                    content_id=channel_name,
-                    content_type='channel'
-                ))
-            
-            logger.info(f"Removed from favorites: {channel_name}")
+    async def disable_integration(self, integration_id: str) -> bool:
+        """تعطيل تكامل"""
+        if integration_id in self.integrations:
+            config = self.integrations[integration_id]
+            config.enabled = False
+            await self._shutdown_integration(integration_id)
             return True
         return False
     
-    def get_favorites(self) -> List[dict]:
-        """Get favorite channels"""
-        return [
-            ch for ch in self.loaded_channels 
-            if ch.get('name') in self.favorite_channels
-        ]
-    
-    def get_recording_status(self) -> dict:
-        """Get current recording status"""
-        if not self.dvr_manager:
-            return {'active': False}
+    async def get_statistics(self) -> Dict:
+        """إحصائيات نظام التكامل"""
+        total = len(self.integrations)
+        enabled = sum(1 for i in self.integrations.values() if i.enabled)
+        active = sum(1 for i in self.integrations.values() if i.status == IntegrationStatus.ACTIVE)
+        errors = sum(1 for i in self.integrations.values() if i.status == IntegrationStatus.ERROR)
         
-        active_recordings = self.dvr_manager.active_recordings
-        stats = self.dvr_manager.get_storage_stats()
+        by_type = {}
+        for integration in self.integrations.values():
+            t = integration.type
+            by_type[t] = by_type.get(t, 0) + 1
         
         return {
-            'active': len(active_recordings) > 0,
-            'count': len(active_recordings),
-            'recordings': list(active_recordings.values()),
-            'storage': stats
+            "total_integrations": total,
+            "enabled": enabled,
+            "active": active,
+            "errors": errors,
+            "by_type": by_type,
+            "event_queue_size": self.event_queue.qsize()
         }
     
-    def get_playback_status(self) -> dict:
-        """Get current playback status"""
-        if not self.player:
-            return {'playing': False}
+    def get_health_report(self) -> Dict:
+        """تقرير صحة النظام"""
+        healthy = []
+        warnings = []
+        critical = []
+        
+        for int_id, config in self.integrations.items():
+            if config.status == IntegrationStatus.ACTIVE:
+                healthy.append(int_id)
+            elif config.status == IntegrationStatus.ERROR:
+                critical.append({
+                    "id": int_id,
+                    "name": config.name,
+                    "error": config.error_message
+                })
+            elif not config.enabled:
+                warnings.append({
+                    "id": int_id,
+                    "name": config.name,
+                    "reason": "معطل"
+                })
+        
+        overall_status = "healthy"
+        if critical:
+            overall_status = "critical"
+        elif warnings:
+            overall_status = "warning"
         
         return {
-            'playing': self.player._is_playing if hasattr(self.player, '_is_playing') else False,
-            'paused': self.player._is_paused if hasattr(self.player, '_is_paused') else False,
-            'channel': self.current_channel,
-            'volume': self.player.get_volume() if hasattr(self.player, 'get_volume') else 80
+            "overall_status": overall_status,
+            "healthy_count": len(healthy),
+            "warnings_count": len(warnings),
+            "critical_count": len(critical),
+            "healthy": healthy,
+            "warnings": warnings,
+            "critical": critical,
+            "timestamp": datetime.now().isoformat()
         }
+
+
+# مثال للاستخدام
+async def main():
+    core = IntegrationCore()
     
-    @Slot()
-    def _update_status(self):
-        """Periodic status update"""
-        # Could emit status signals here
-        pass
+    print("🔧 نظام التكامل المركزي\n")
     
-    def cleanup(self):
-        """Cleanup all resources"""
-        logger.info("Cleaning up integration controller...")
-        
-        if self.status_timer:
-            self.status_timer.stop()
-        
-        if self.player:
-            self.player.cleanup()
-        
-        if self.db_manager:
-            asyncio.run(self.db_manager.close())
-        
-        logger.info("Cleanup complete")
+    # عرض التكاملات المسجلة
+    print("📋 التكاملات المسجلة:")
+    for int_id, config in core.integrations.items():
+        status_icon = "🟢" if config.enabled else "⚪"
+        print(f"  {status_icon} {config.name} ({config.type})")
+    
+    # بدء النظام
+    print("\n\n🚀 بدء النظام...")
+    await core.start()
+    
+    # إصدار أحداث اختبارية
+    print("\n\n📡 اختبار الأحداث:")
+    core.emit_event("user_login", {"user_id": "user_123", "username": "ahmed"})
+    await asyncio.sleep(0.5)
+    
+    core.emit_event("content_played", {
+        "user_id": "user_123",
+        "content_id": "movie_456",
+        "content_type": "movie"
+    })
+    await asyncio.sleep(0.5)
+    
+    # الإحصائيات
+    print("\n\n📊 إحصائيات النظام:")
+    stats = await core.get_statistics()
+    for key, value in stats.items():
+        print(f"  {key}: {value}")
+    
+    # تقرير الصحة
+    print("\n\n💚 تقرير الصحة:")
+    health = core.get_health_report()
+    print(f"  الحالة العامة: {health['overall_status']}")
+    print(f"  سليم: {health['healthy_count']}")
+    print(f"  تحذيرات: {health['warnings_count']}")
+    print(f"  حرجة: {health['critical_count']}")
+    
+    # إيقاف النظام
+    print("\n\n🛑 إيقاف النظام...")
+    await core.stop()
 
 
-# Singleton instance
-_integration_controller: Optional[IntegrationController] = None
-
-
-def get_integration_controller() -> IntegrationController:
-    """Get singleton instance of integration controller"""
-    global _integration_controller
-    if _integration_controller is None:
-        _integration_controller = IntegrationController()
-    return _integration_controller
-
-
-# Test function
 if __name__ == "__main__":
-    from PySide6.QtWidgets import QApplication
-    
-    app = QApplication(sys.argv)
-    
-    controller = get_integration_controller()
-    controller.initialize_components()
-    
-    print("✅ Integration Controller Ready!")
-    print(f"📺 Loaded Channels: {len(controller.loaded_channels)}")
-    print(f"⭐ Favorites: {len(controller.favorite_channels)}")
-    print(f"🎬 Playback Status: {controller.get_playback_status()}")
-    print(f"📼 Recording Status: {controller.get_recording_status()}")
-    
-    sys.exit(app.exec())
+    asyncio.run(main())
