@@ -61,46 +61,95 @@ class SettingsPage(QWidget):
         layout = QVBoxLayout(widget)
         
         # Language
-        lang_group = QGroupBox("Language / اللغة")
+        lang_group = QGroupBox("🌐 Language / اللغة")
         lang_layout = QVBoxLayout(lang_group)
         
         lang_combo = QComboBox()
+        lang_combo.setObjectName("langSelector")
         lang_combo.addItems(["English", "Arabic / العربية"])
         lang_layout.addWidget(lang_combo)
         layout.addWidget(lang_group)
         
-        # Theme
-        theme_group = QGroupBox("Theme")
+        # Theme Selection with Preview
+        theme_group = QGroupBox("🎨 Theme Selection")
         theme_layout = QVBoxLayout(theme_group)
         
+        theme_label = QLabel("Choose your preferred theme:")
+        theme_label.setObjectName("headingLabel")
+        theme_layout.addWidget(theme_label)
+        
         theme_combo = QComboBox()
-        theme_combo.addItems(["Dark Neon", "Light", "Cyberpunk", "Plex Style", "Netflix Style"])
+        theme_combo.setObjectName("themeSelector")
+        theme_combo.addItems([
+            "🔵 Cyberpunk Neon",
+            "🔴 Dark Elegant",
+            "🌊 Ocean Blue",
+            "🟣 Purple Haze",
+            "🟢 Green Matrix",
+            "🟠 Sunset Orange"
+        ])
         theme_layout.addWidget(theme_combo)
+        
+        # Theme preview colors
+        preview_layout = QHBoxLayout()
+        preview_label = QLabel("Theme Colors Preview:")
+        preview_layout.addWidget(preview_label)
+        preview_layout.addStretch()
         layout.addWidget(theme_group)
+        layout.addLayout(preview_layout)
         
         # Performance
-        perf_group = QGroupBox("Performance")
+        perf_group = QGroupBox("⚡ Performance Settings")
         perf_layout = QVBoxLayout(perf_group)
         
-        gpu_check = QCheckBox("Enable GPU Acceleration")
+        gpu_check = QCheckBox("🚀 Enable GPU Acceleration (Recommended)")
         gpu_check.setChecked(True)
+        gpu_check.setObjectName("perfCheck")
         perf_layout.addWidget(gpu_check)
         
-        anim_check = QCheckBox("Enable Animations")
+        anim_check = QCheckBox("✨ Enable Smooth Animations")
         anim_check.setChecked(True)
+        anim_check.setObjectName("perfCheck")
         perf_layout.addWidget(anim_check)
         
-        cache_check = QCheckBox("Enable Cache")
+        cache_check = QCheckBox("💾 Enable Smart Caching")
         cache_check.setChecked(True)
+        cache_check.setObjectName("perfCheck")
         perf_layout.addWidget(cache_check)
         
+        ram_label = QLabel("Max RAM Usage (MB):")
+        perf_layout.addWidget(ram_label)
+        
+        ram_spin = QSpinBox()
+        ram_spin.setRange(100, 1000)
+        ram_spin.setValue(300)
+        ram_spin.setSuffix(" MB")
+        perf_layout.addWidget(ram_spin)
+        
         layout.addWidget(perf_group)
+        
+        # Appearance
+        appear_group = QGroupBox("👁️ Appearance")
+        appear_layout = QVBoxLayout(appear_group)
+        
+        font_size_spin = QSpinBox()
+        font_size_spin.setRange(10, 24)
+        font_size_spin.setValue(14)
+        font_size_spin.setSuffix(" px")
+        appear_layout.addWidget(QLabel("Font Size:"))
+        appear_layout.addWidget(font_size_spin)
+        
+        transparency_check = QCheckBox("Enable Transparency Effects")
+        appear_layout.addWidget(transparency_check)
+        
+        layout.addWidget(appear_group)
         
         layout.addStretch()
         
         # Save button
         save_btn = QPushButton("💾 Save Settings")
         save_btn.setObjectName("primaryButton")
+        save_btn.setMinimumHeight(50)
         layout.addWidget(save_btn)
         
         return widget
