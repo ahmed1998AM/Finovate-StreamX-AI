@@ -432,6 +432,44 @@ class PluginMarketplace:
         }
 
 
+# PluginManager class for backward compatibility
+class PluginManager:
+    """مدير الإضافات - واجهة مبسطة"""
+    
+    def __init__(self, cache_dir: str = "plugins_cache"):
+        self.marketplace = PluginMarketplace(cache_dir)
+    
+    async def install(self, plugin_id: str) -> tuple[bool, str]:
+        return await self.marketplace.install_plugin(plugin_id)
+    
+    async def uninstall(self, plugin_id: str) -> tuple[bool, str]:
+        return await self.marketplace.uninstall_plugin(plugin_id)
+    
+    async def enable(self, plugin_id: str) -> tuple[bool, str]:
+        return await self.marketplace.enable_plugin(plugin_id)
+    
+    async def disable(self, plugin_id: str) -> tuple[bool, str]:
+        return await self.marketplace.disable_plugin(plugin_id)
+    
+    async def update(self, plugin_id: str) -> tuple[bool, str]:
+        return await self.marketplace.update_plugin(plugin_id)
+    
+    async def search(self, **kwargs) -> List[PluginInfo]:
+        return await self.marketplace.search_plugins(**kwargs)
+    
+    async def check_updates(self) -> List[str]:
+        return await self.marketplace.check_updates()
+    
+    def get_installed(self) -> List[InstalledPlugin]:
+        return self.marketplace.get_installed_plugins()
+    
+    def get_details(self, plugin_id: str) -> Optional[PluginInfo]:
+        return self.marketplace.get_plugin_details(plugin_id)
+    
+    async def get_statistics(self) -> Dict:
+        return await self.marketplace.get_statistics()
+
+
 # مثال للاستخدام
 async def main():
     marketplace = PluginMarketplace()
