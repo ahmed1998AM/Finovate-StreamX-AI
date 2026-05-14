@@ -1,36 +1,72 @@
+# Examples
+
+## Example 1:
+
+**Input:**
 ```
-# Compiled Python files
+### Added files:
+['src/main.py', 'README.md', 'config.json']
+
+### Deleted files:
+['old/unused.py']
+
+### Modified files:
+['utils.py']
+
+### Current .gitignore Content
+(empty)
+```
+
+**Output:**
+(nothing)
+
+## Example 2:
+
+**Input:**
+```
+### Added files:
+['pycache/main.cpython-310.pyc', 'dist/app.js', '.env.local', '.vscode/settings.json']
+
+### Deleted files:
+[]
+
+### Modified files:
+[]
+
+### Current .gitignore Content
+*.log
+```
+
+**Output:**
+```
+# Compiled and build artifacts
 *.pyc
 __pycache__/
-
-# Virtual environments
-venv/
-.venv/
-.env
-.env.local
-*.env.*
-
-# IDE and editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
-
-# Logs
-*.log
-
-# Build and distribution
+*.o
+*.obj
 dist/
 build/
-target/
 
-# Coverage reports
-.coverage
-coverage/
-htmlcov/
+# Dependencies
+.venv/
+venv/
+node_modules/
 
-# Testing
-.pytest_cache/
-.mypy_cache/
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Editors
+.vscode/
+.idea/
 ```
+
+---
+
+Only source/config files were added (no build artifacts, dependencies, or temp files), so the .gitignore remains empty.
