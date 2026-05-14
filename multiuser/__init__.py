@@ -9,6 +9,9 @@ from .permissions import PermissionManager, Permission
 from .session_manager import SessionManager
 from .family_mode import FamilyMode, ContentRestriction
 
+# Aliases for backward compatibility
+Permissions = Permission
+
 __version__ = "1.0.0"
 __all__ = [
     "UserManager",
@@ -17,6 +20,7 @@ __all__ = [
     "UserProfile",
     "PermissionManager",
     "Permission",
+    "Permissions",  # Alias
     "SessionManager",
     "FamilyMode",
     "ContentRestriction"
